@@ -1,8 +1,8 @@
 package main
 
 import (
-	"PetProject/config"
-	"PetProject/internal/app"
+	"github.com/MaxKut3/PetProject/config"
+	"github.com/MaxKut3/PetProject/internal/app"
 )
 
 func main() {
