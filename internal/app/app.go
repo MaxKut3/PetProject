@@ -45,10 +45,10 @@ func Run(cfg *config.Config) {
 	r.Get("/", helloHandler)
 
 	postHandler := handlers.NewPostBalanceHandler(balanceRep)
-	r.Get("/PostBalance/user/{userID}/balance/{balance}", postHandler)
+	r.Post("/PostBalance/user/{userID}/balance/{balance}", postHandler)
 
 	putBalanceHandler := handlers.NewPutBalanceHandler(balanceRep)
-	r.Get("/PutBalance/user/{userID}/balance/{balance}", putBalanceHandler)
+	r.Put("/PutBalance/user/{userID}/balance/{balance}", putBalanceHandler)
 
 	getBalanceHandler := handlers.NewGetBalanceHandler(balanceRep)
 	r.Get("/GetBalance/user/{userID}", getBalanceHandler)
