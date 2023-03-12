@@ -6,9 +6,12 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/MaxKut3/PetProject/handlers"
+
+	"github.com/MaxKut3/PetProject/repositories"
+
 	"github.com/MaxKut3/PetProject/config"
 
-	"github.com/MaxKut3/PetProject/internal/use_cases/handlers"
 	"github.com/jackc/pgx"
 	"github.com/joho/godotenv"
 
@@ -39,20 +42,23 @@ func Run(cfg *config.Config) {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 
-	balanceRep := handlers.NewBalanceRepository(conn)
+	balanceRep := repositories.NewBalanceRepository(conn)
 
-	helloHandler := handlers.NewHelloHandler()
-	r.Get("/", helloHandler)
+	balanceHandler := handlers.NewBalanceHandler(balanceRep)
 
-	postHandler := handlers.NewPostBalanceHandler(balanceRep)
-	r.Post("/PostBalance/user/{userID}/balance/{balance}", postHandler)
+	r.Get("/", balanceHandler.HelloHandler())
+	r.Get("/GetBalance/user/{userID}", balanceHandler.GetBalanceHandler())
+	r.Get("/GetTransactionReport/user/{userID}", balanceHandler.GetTransactionsHandler())
+	r.Get("/GetAccountingReport/month/{month}/year/{year}", balanceHandler.GetAccountingReportHandler())
 
-	putBalanceHandler := handlers.NewPutBalanceHandler(balanceRep)
-	r.Put("/PutBalance/user/{userID}/balance/{balance}", putBalanceHandler)
+	r.Post("/PostBalance/user/{userID}/balance/{balance}", balanceHandler.PostBalanceHandler())
+	r.Post("/PostReserve/user/{userID}/amount/{amount}", balanceHandler.ResevreMoney())
 
-	getBalanceHandler := handlers.NewGetBalanceHandler(balanceRep)
-	r.Get("/GetBalance/user/{userID}", getBalanceHandler)
+	r.Put("/PutBalance/user/{userID}/balance/{balance}", balanceHandler.PutBalanceHandler())
+	r.Put("/PutTransfer/user/{user1}/to/{user2}/sum/{sum}", balanceHandler.TransferMoneyHandler())
+	r.Put("/PutRefresh/user/{userID}/", balanceHandler.RefreshMoneyHandler()) //
 
+	r.Delete("/DeleteReserve/user/{userID}/", balanceHandler.DeleteReserveHandler())
 	http.ListenAndServe(":8080", r)
 
 }
