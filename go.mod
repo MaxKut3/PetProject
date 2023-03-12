@@ -1,4 +1,4 @@
-module PetProject
+module github.com/MaxKut3/PetProject
 
 go 1.19
 
