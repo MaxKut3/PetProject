@@ -18,8 +18,10 @@ func (b *BalanceHandler) TransferMoneyHandler() func(w http.ResponseWriter, r *h
 		err := b.rep.TransferMoney(id1, id2, sum)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusAccepted)
+			return
 		}
+
+		w.WriteHeader(http.StatusAccepted)
+
 	}
 }

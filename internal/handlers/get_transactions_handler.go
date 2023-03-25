@@ -15,8 +15,10 @@ func (b *BalanceHandler) GetTransactionsHandler() func(w http.ResponseWriter, r 
 		err := b.rep.GetTransactionsReport(userID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusCreated)
+			return
 		}
+
+		w.WriteHeader(http.StatusCreated)
+
 	}
 }

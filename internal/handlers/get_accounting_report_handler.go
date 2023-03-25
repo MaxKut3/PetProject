@@ -16,8 +16,10 @@ func (b *BalanceHandler) GetAccountingReportHandler() func(w http.ResponseWriter
 		err := b.rep.GetAccountingReport(month, year)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusCreated)
+			return
 		}
+
+		w.WriteHeader(http.StatusCreated)
+
 	}
 }

@@ -19,11 +19,17 @@ func NewBalanceRepository(conn *pgx.Conn) *BalanceRepository {
 	}
 }
 
-// addTransaction - Запись транзакции - должна быть во всех операциях, связанных с изменениями
-// type_transaction - 0 пополнение, 1 - списание
-func (rep *BalanceRepository) addTransaction(userID, balance, typeTrans int) error {
+type TypeTransaction int // type_transaction - 0 пополнение, 1 - списание
 
-	_, err := rep.conn.Exec("INSERT INTO Transactions (userID, amount, type_transaction) VALUES ($1, $2, $3);", userID, balance, typeTrans)
+const (
+	TypeTransactionAdd      = TypeTransaction(0)
+	TypeTransactionWithdraw = TypeTransaction(1)
+)
+
+// addTransaction - Запись транзакции - должна быть во всех операциях, связанных с изменениями
+func (rep *BalanceRepository) addTransaction(tx *pgx.Tx, userID, balance int, typeTrans TypeTransaction) error {
+
+	_, err := tx.Exec("INSERT INTO Transactions (userID, amount, type_transaction) VALUES ($1, $2, $3);", userID, balance, typeTrans)
 	if err != nil {
 		log.Printf("Данные в базу не записались: %e", err)
 		return err
@@ -31,29 +37,13 @@ func (rep *BalanceRepository) addTransaction(userID, balance, typeTrans int) err
 	return nil
 }
 
-// balanceCheck Проверка достаточности средств
-func (rep *BalanceRepository) balanceCheck(userID, amount int) bool {
-
-	row := rep.conn.QueryRow(
-		"Select sum(balance) FROM Balance Where userid = $1::integer", userID)
-
-	var balance int
-	row.Scan(&balance)
-
-	if amount > balance {
-		return false
-	}
-	return true
-}
-
 // CreateUserBalance - Создание баланса
-
 func (rep *BalanceRepository) CreateUserBalance(userID, balance int) error {
 
 	tx, _ := rep.conn.Begin()
 
-	errTrans := rep.addTransaction(userID, balance, 0)
-	_, errInsert := rep.conn.Exec("INSERT INTO Balance (userID, balance) VALUES ($1::integer, $2::integer)", userID, balance)
+	errTrans := rep.addTransaction(tx, userID, balance, TypeTransactionAdd)
+	_, errInsert := tx.Exec("INSERT INTO Balance (userID, balance) VALUES ($1::integer, $2::integer)", userID, balance)
 
 	if errTrans != nil || errInsert != nil {
 		tx.Rollback()
@@ -65,9 +55,9 @@ func (rep *BalanceRepository) CreateUserBalance(userID, balance int) error {
 
 }
 
-func (rep *BalanceRepository) updateUserBalance(userID, balance int) error {
+func (rep *BalanceRepository) updateUserBalance(tx *pgx.Tx, userID, balance int) error {
 
-	_, errUpdate := rep.conn.Exec("UPDATE Balance SET balance = balance + $1::integer WHERE userID = $2::integer;", balance, userID)
+	_, errUpdate := tx.Exec("UPDATE Balance SET balance = balance + $1::integer WHERE userID = $2::integer;", balance, userID)
 
 	if errUpdate != nil {
 		return fmt.Errorf("ошибка записи в базу")
@@ -81,8 +71,8 @@ func (rep *BalanceRepository) UpdateUserBalance(userID, balance int) error {
 
 	tx, _ := rep.conn.Begin()
 
-	errTrans := rep.addTransaction(userID, balance, 0)
-	errUpdate := rep.updateUserBalance(userID, balance)
+	errTrans := rep.addTransaction(tx, userID, balance, 0)
+	errUpdate := rep.updateUserBalance(tx, userID, balance)
 
 	if errTrans != nil || errUpdate != nil {
 		tx.Rollback()
@@ -94,13 +84,9 @@ func (rep *BalanceRepository) UpdateUserBalance(userID, balance int) error {
 }
 
 // Снятие денег со счета
-func (rep *BalanceRepository) cashWithdrawal(userID, amount int) error {
+func (rep *BalanceRepository) cashWithdrawal(tx *pgx.Tx, userID, amount int) error {
 
-	check := rep.balanceCheck(userID, amount)
-	if check != true {
-		return fmt.Errorf("не достаточно средств")
-	}
-	_, errBalance := rep.conn.Exec("UPDATE Balance SET balance = balance - $1::integer WHERE userID = $2::integer;", amount, userID)
+	_, errBalance := tx.Exec("UPDATE Balance SET balance = balance - $1::integer WHERE userID = $2::integer;", amount, userID)
 
 	if errBalance != nil {
 		log.Printf("Данные в базе не обновились: %e", errBalance)
@@ -111,9 +97,9 @@ func (rep *BalanceRepository) cashWithdrawal(userID, amount int) error {
 }
 
 // Добавление средств на счет для резервирования
-func (rep *BalanceRepository) reserve(userID, amount int) error {
+func (rep *BalanceRepository) reserve(tx *pgx.Tx, userID, amount int) error {
 
-	_, errReserve := rep.conn.Exec("INSERT INTO Reserved (userID, balance) VALUES ($1, $2);", userID, amount)
+	_, errReserve := tx.Exec("INSERT INTO Reserved (userID, balance) VALUES ($1, $2);", userID, amount)
 	if errReserve != nil {
 		log.Printf("Данные в базу не записались: %e", errReserve)
 		return errReserve
@@ -124,14 +110,10 @@ func (rep *BalanceRepository) reserve(userID, amount int) error {
 // Reserve - Резервирование средств
 func (rep *BalanceRepository) Reserve(userID, amount int) error {
 
-	if !rep.balanceCheck(userID, amount) {
-		return fmt.Errorf("не достаточно средств")
-	}
-
 	tx, _ := rep.conn.Begin()
 
-	errWithdrawal := rep.cashWithdrawal(userID, amount)
-	errReserve := rep.reserve(userID, amount)
+	errWithdrawal := rep.cashWithdrawal(tx, userID, amount)
+	errReserve := rep.reserve(tx, userID, amount)
 	if errWithdrawal != nil || errReserve != nil {
 		tx.Rollback()
 		return fmt.Errorf("ошибка записи в базу")
@@ -165,9 +147,9 @@ func (rep *BalanceRepository) getReserve(userID int) int {
 	return reserve
 }
 
-func (rep *BalanceRepository) deleteReserve(userID int) error {
+func (rep *BalanceRepository) deleteReserve(tx *pgx.Tx, userID int) error {
 
-	_, err := rep.conn.Exec("DELETE FROM Reserved Where userid = $1::integer", userID)
+	_, err := tx.Exec("DELETE FROM Reserved Where userid = $1::integer", userID)
 	if err != nil {
 		log.Printf("Данные в базу не записались: %e", err)
 		return err
@@ -182,8 +164,8 @@ func (rep *BalanceRepository) Debit(userID int) error {
 
 	tx, _ := rep.conn.Begin()
 
-	errTrans := rep.addTransaction(userID, -amount, 1)
-	errDelete := rep.deleteReserve(userID)
+	errTrans := rep.addTransaction(tx, userID, -amount, TypeTransactionWithdraw)
+	errDelete := rep.deleteReserve(tx, userID)
 
 	if errTrans != nil || errDelete != nil {
 		tx.Rollback()
@@ -201,8 +183,8 @@ func (rep *BalanceRepository) Refund(userID int) error {
 
 	tx, _ := rep.conn.Begin()
 
-	errUpdate := rep.updateUserBalance(userID, amount)
-	errDelete := rep.deleteReserve(userID)
+	errUpdate := rep.updateUserBalance(tx, userID, amount)
+	errDelete := rep.deleteReserve(tx, userID)
 
 	if errUpdate != nil || errDelete != nil {
 		tx.Rollback()
@@ -216,19 +198,15 @@ func (rep *BalanceRepository) Refund(userID int) error {
 // TransferMoney - Перевод от user к user
 func (rep *BalanceRepository) TransferMoney(userID1, userID2, sum int) error {
 
-	check := rep.balanceCheck(userID1, sum)
-	if check != true {
-		return fmt.Errorf("не достаточно средств")
-	}
-
 	tx, _ := rep.conn.Begin()
 
-	errTrans1 := rep.addTransaction(userID1, -sum, 1)
-	errWithdrawal := rep.cashWithdrawal(userID1, sum)
+	errTrans1 := rep.addTransaction(tx, userID1, -sum, TypeTransactionWithdraw)
+	errWithdrawal := rep.cashWithdrawal(tx, userID1, sum)
 
-	errUpdate := rep.UpdateUserBalance(userID2, sum)
+	errUpdate := rep.updateUserBalance(tx, userID2, sum)
+	errTrans2 := rep.addTransaction(tx, userID2, sum, TypeTransactionWithdraw)
 
-	if errTrans1 != nil || errWithdrawal != nil || errUpdate != nil {
+	if errTrans1 != nil || errWithdrawal != nil || errUpdate != nil || errTrans2 != nil {
 		tx.Rollback()
 		return fmt.Errorf("ошибка записи в базу")
 	}

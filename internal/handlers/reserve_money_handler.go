@@ -15,8 +15,10 @@ func (b *BalanceHandler) ResevreMoney() func(w http.ResponseWriter, r *http.Requ
 		err := b.rep.Reserve(id, amount)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusAccepted)
+			return
 		}
+
+		w.WriteHeader(http.StatusAccepted)
+
 	}
 }

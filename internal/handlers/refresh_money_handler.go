@@ -14,8 +14,10 @@ func (b *BalanceHandler) RefreshMoneyHandler() func(w http.ResponseWriter, r *ht
 		err := b.rep.Refund(userID)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.WriteHeader(http.StatusAccepted)
+			return
 		}
+
+		w.WriteHeader(http.StatusAccepted)
+
 	}
 }

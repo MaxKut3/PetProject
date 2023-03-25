@@ -3,7 +3,7 @@
 SELECT 'up SQL query';
 CREATE TABLE Balance (
     userID      int primary key,
-    balance     int
+    balance     int CHECK ( balance >= 0 )
 );
 -- +goose StatementEnd
 

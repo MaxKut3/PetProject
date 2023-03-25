@@ -6,9 +6,8 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/MaxKut3/PetProject/handlers"
-
-	"github.com/MaxKut3/PetProject/repositories"
+	"github.com/MaxKut3/PetProject/internal/handlers"
+	"github.com/MaxKut3/PetProject/internal/repositories"
 
 	"github.com/MaxKut3/PetProject/config"
 
@@ -46,17 +45,17 @@ func Run(cfg *config.Config) {
 
 	balanceHandler := handlers.NewBalanceHandler(balanceRep)
 
-	r.Get("/", balanceHandler.HelloHandler())
+	r.Get("/", balanceHandler.HelloHandler)
 	r.Get("/GetBalance/user/{userID}", balanceHandler.GetBalanceHandler())
-	r.Get("/GetTransactionReport/user/{userID}", balanceHandler.GetTransactionsHandler())
-	r.Get("/GetAccountingReport/month/{month}/year/{year}", balanceHandler.GetAccountingReportHandler())
+	r.Get("/GetTransactionReport/user/{userID}", balanceHandler.GetTransactionsHandler())                //
+	r.Get("/GetAccountingReport/month/{month}/year/{year}", balanceHandler.GetAccountingReportHandler()) //
 
 	r.Post("/PostBalance/user/{userID}/balance/{balance}", balanceHandler.PostBalanceHandler())
 	r.Post("/PostReserve/user/{userID}/amount/{amount}", balanceHandler.ResevreMoney())
 
 	r.Put("/PutBalance/user/{userID}/balance/{balance}", balanceHandler.PutBalanceHandler())
-	r.Put("/PutTransfer/user/{user1}/to/{user2}/sum/{sum}", balanceHandler.TransferMoneyHandler())
-	r.Put("/PutRefresh/user/{userID}/", balanceHandler.RefreshMoneyHandler()) //
+	r.Get("/PutTransfer/user/{user1}/to/{user2}/sum/{sum}", balanceHandler.TransferMoneyHandler())
+	r.Put("/PutRefresh/user/{userID}/", balanceHandler.RefreshMoneyHandler())
 
 	r.Delete("/DeleteReserve/user/{userID}/", balanceHandler.DeleteReserveHandler())
 	http.ListenAndServe(":8080", r)

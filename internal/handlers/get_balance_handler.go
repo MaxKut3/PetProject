@@ -5,14 +5,14 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/MaxKut3/PetProject/repositories"
+	"github.com/MaxKut3/PetProject/internal/repositories"
 
 	"github.com/go-chi/chi/v5"
 )
 
 type BalanceResponse struct {
-	UserID  int `json:"userID"`
-	Balance int `json:"Balance"`
+	User_id int `json:"user_id"`
+	Balance int `json:"balance"`
 }
 
 type BalanceHandler struct {
@@ -31,15 +31,17 @@ func (b *BalanceHandler) GetBalanceHandler() func(w http.ResponseWriter, r *http
 		userID, _ := strconv.Atoi(chi.URLParam(r, "userID"))
 
 		ans := BalanceResponse{
-			UserID:  userID,
+			User_id: userID,
 			Balance: b.rep.GetBalance(userID),
 		}
 
 		resp, err := json.Marshal(&ans)
 		if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-		} else {
-			w.Write(resp)
+			return
 		}
+
+		w.Write(resp)
+
 	}
 }
